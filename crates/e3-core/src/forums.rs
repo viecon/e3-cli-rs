@@ -12,6 +12,23 @@ pub async fn get_forums(client: &MoodleClient, course_ids: &[i64]) -> Result<Vec
         .await
 }
 
+/// Get posts in a discussion thread
+pub async fn get_discussion_posts(
+    client: &MoodleClient,
+    discussion_id: i64,
+) -> Result<ForumPostsResponse> {
+    client
+        .call(
+            "mod_forum_get_discussion_posts",
+            &serde_json::json!({
+                "discussionid": discussion_id,
+                "sortby": "created",
+                "sortdirection": "ASC",
+            }),
+        )
+        .await
+}
+
 /// Get discussions in a forum
 pub async fn get_forum_discussions(
     client: &MoodleClient,

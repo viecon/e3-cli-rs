@@ -84,6 +84,17 @@ pub fn progress_bar(total: u64) -> indicatif::ProgressBar {
     pb
 }
 
+/// Format byte size for display
+pub fn format_size(bytes: i64) -> String {
+    if bytes < 1024 {
+        format!("{bytes} B")
+    } else if bytes < 1024 * 1024 {
+        format!("{:.1} KB", bytes as f64 / 1024.0)
+    } else {
+        format!("{:.1} MB", bytes as f64 / (1024.0 * 1024.0))
+    }
+}
+
 /// Strip HTML for display
 pub fn strip_html(html: &str) -> String {
     e3_core::ics::strip_html(html)

@@ -2,9 +2,12 @@ pub mod assignments;
 pub mod auth;
 pub mod calendar;
 pub mod config;
+pub mod content;
 pub mod courses;
 pub mod download;
 pub mod export;
+pub mod fetch;
+pub mod forum;
 pub mod grades;
 pub mod news;
 pub mod notifications;
@@ -50,16 +53,52 @@ pub enum Commands {
         /// Days ahead to look (default: 30)
         #[arg(long, default_value = "30")]
         days: i64,
+        /// Filter by course ID
+        #[arg(long)]
+        course: Option<i64>,
+        /// Show all assignments (including submitted)
+        #[arg(long)]
+        all: bool,
     },
     /// View submission details
     Submission {
         /// Assignment ID (cmid)
         id: i64,
+        /// Download submitted files
+        #[arg(long)]
+        download: bool,
+        /// Output directory for downloads
+        #[arg(short, long)]
+        output: Option<String>,
+    },
+    /// Browse course content (sections, modules, files)
+    Content {
+        /// Course ID
+        course: i64,
+    },
+    /// Browse forum discussions
+    Forum {
+        /// Course ID or Forum ID
+        target: i64,
+        /// Show a specific discussion thread
+        #[arg(long)]
+        thread: Option<i64>,
+        /// Search for keyword in posts
+        #[arg(long)]
+        search: Option<String>,
+    },
+    /// Fetch an E3 page with authentication
+    Fetch {
+        /// E3 page URL
+        url: String,
     },
     /// View grades
     Grades {
         /// Course ID (omit for all courses overview)
         course: Option<i64>,
+        /// Show detailed grades for all courses
+        #[arg(long)]
+        all: bool,
     },
     /// View calendar events
     Calendar {
@@ -75,9 +114,11 @@ pub enum Commands {
     },
     /// View course announcements
     News {
-        /// Filter by course ID
-        #[arg(long)]
+        /// Course ID (omit for all courses)
         course: Option<i64>,
+        /// Course ID (alias, backward compat)
+        #[arg(long = "course", hide = true)]
+        course_flag: Option<i64>,
         /// Days back (default: 7)
         #[arg(long, default_value = "7")]
         days: i64,
@@ -177,20 +218,40 @@ pub async fn run(cli: Cli) -> e3_core::error::Result<()> {
         Commands::Whoami => auth::whoami(cli.json, cli.base_url.as_deref()).await,
         Commands::Status => status::run(cli.json, cli.base_url.as_deref()).await,
         Commands::Courses { all } => courses::run(cli.json, cli.base_url.as_deref(), all).await,
-        Commands::Assignments { days } => {
-            assignments::run(cli.json, cli.base_url.as_deref(), days).await
+        Commands::Assignments { days, course, all } => {
+            assignments::run(cli.json, cli.base_url.as_deref(), days, course, all).await
         }
-        Commands::Submission { id } => {
-            assignments::submission(cli.json, cli.base_url.as_deref(), id).await
+        Commands::Submission {
+            id,
+            download,
+            output,
+        } => {
+            assignments::submission(cli.json, cli.base_url.as_deref(), id, download, output).await
         }
-        Commands::Grades { course } => grades::run(cli.json, cli.base_url.as_deref(), course).await,
+        Commands::Content { course } => {
+            content::run(cli.json, cli.base_url.as_deref(), course).await
+        }
+        Commands::Forum {
+            target,
+            thread,
+            search,
+        } => forum::run(cli.json, cli.base_url.as_deref(), target, thread, search).await,
+        Commands::Fetch { url } => fetch::run(cli.json, cli.base_url.as_deref(), &url).await,
+        Commands::Grades { course, all } => {
+            grades::run(cli.json, cli.base_url.as_deref(), course, all).await
+        }
         Commands::Calendar {
             days,
             ics,
             ics_days,
         } => calendar::run(cli.json, cli.base_url.as_deref(), days, ics, ics_days).await,
-        Commands::News { course, days } => {
-            news::run(cli.json, cli.base_url.as_deref(), course, days).await
+        Commands::News {
+            course,
+            course_flag,
+            days,
+        } => {
+            let cid = course.or(course_flag);
+            news::run(cli.json, cli.base_url.as_deref(), cid, days).await
         }
         Commands::Notifications { limit } => {
             notifications::run(cli.json, cli.base_url.as_deref(), limit).await

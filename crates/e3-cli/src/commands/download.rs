@@ -112,7 +112,7 @@ pub async fn run(
                     f.section,
                     f.module,
                     f.filename,
-                    format_size(f.filesize),
+                    output::format_size(f.filesize),
                 );
             }
             println!("\n{}", format!("共 {} 個檔案", all_files.len()).dimmed());
@@ -189,12 +189,3 @@ pub async fn run(
     Ok(())
 }
 
-fn format_size(bytes: i64) -> String {
-    if bytes < 1024 {
-        format!("{bytes} B")
-    } else if bytes < 1024 * 1024 {
-        format!("{:.1} KB", bytes as f64 / 1024.0)
-    } else {
-        format!("{:.1} MB", bytes as f64 / (1024.0 * 1024.0))
-    }
-}

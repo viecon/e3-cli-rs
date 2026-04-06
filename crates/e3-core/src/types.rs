@@ -56,20 +56,27 @@ pub struct Course {
     #[serde(deserialize_with = "bool_or_int", default)]
     pub summaryformat: Option<i32>,
     pub format: Option<String>,
-    pub showgrades: Option<bool>,
+    #[serde(deserialize_with = "bool_or_int", default)]
+    pub showgrades: Option<i32>,
     pub lang: Option<String>,
-    pub enablecompletion: Option<bool>,
-    pub completionhascriteria: Option<bool>,
-    pub completionusertracked: Option<bool>,
+    #[serde(deserialize_with = "bool_or_int", default)]
+    pub enablecompletion: Option<i32>,
+    #[serde(deserialize_with = "bool_or_int", default)]
+    pub completionhascriteria: Option<i32>,
+    #[serde(deserialize_with = "bool_or_int", default)]
+    pub completionusertracked: Option<i32>,
     pub category: Option<i64>,
     pub progress: Option<f64>,
-    pub completed: Option<bool>,
+    #[serde(deserialize_with = "bool_or_int", default)]
+    pub completed: Option<i32>,
     pub startdate: Option<i64>,
     pub enddate: Option<i64>,
     pub marker: Option<i64>,
     pub lastaccess: Option<i64>,
-    pub isfavourite: Option<bool>,
-    pub hidden: Option<bool>,
+    #[serde(deserialize_with = "bool_or_int", default)]
+    pub isfavourite: Option<i32>,
+    #[serde(deserialize_with = "bool_or_int", default)]
+    pub hidden: Option<i32>,
     #[serde(default)]
     pub overviewfiles: Vec<FileInfo>,
 }
@@ -92,7 +99,8 @@ pub struct CourseSection {
     pub section: Option<i64>,
     #[serde(deserialize_with = "bool_or_int", default)]
     pub hiddenbynumsections: Option<i32>,
-    pub uservisible: Option<bool>,
+    #[serde(deserialize_with = "bool_or_int", default)]
+    pub uservisible: Option<i32>,
     #[serde(default)]
     pub modules: Vec<CourseModule>,
 }
@@ -107,7 +115,8 @@ pub struct CourseModule {
     pub description: Option<String>,
     #[serde(deserialize_with = "bool_or_int", default)]
     pub visible: Option<i32>,
-    pub uservisible: Option<bool>,
+    #[serde(deserialize_with = "bool_or_int", default)]
+    pub uservisible: Option<i32>,
     #[serde(deserialize_with = "bool_or_int", default)]
     pub visibleoncoursepage: Option<i32>,
     pub modicon: Option<String>,
@@ -118,7 +127,8 @@ pub struct CourseModule {
     pub onclick: Option<String>,
     pub afterlink: Option<String>,
     pub customdata: Option<String>,
-    pub noviewlink: Option<bool>,
+    #[serde(deserialize_with = "bool_or_int", default)]
+    pub noviewlink: Option<i32>,
     pub completion: Option<i32>,
     #[serde(default)]
     pub contents: Vec<FileInfo>,
@@ -138,7 +148,8 @@ pub struct FileInfo {
     pub timemodified: Option<i64>,
     pub sortorder: Option<i64>,
     pub mimetype: Option<String>,
-    pub isexternalfile: Option<bool>,
+    #[serde(deserialize_with = "bool_or_int", default)]
+    pub isexternalfile: Option<i32>,
     pub userid: Option<i64>,
     pub author: Option<String>,
     pub license: Option<String>,
@@ -227,14 +238,21 @@ pub struct LastAttempt {
     pub teamsubmission: Option<Submission>,
     #[serde(default)]
     pub submissiongroupmemberswhoneedtosubmit: Vec<serde_json::Value>,
-    pub submissionsenabled: Option<bool>,
-    pub locked: Option<bool>,
-    pub graded: Option<bool>,
-    pub canedit: Option<bool>,
-    pub caneditowner: Option<bool>,
-    pub cansubmit: Option<bool>,
+    #[serde(deserialize_with = "bool_or_int", default)]
+    pub submissionsenabled: Option<i32>,
+    #[serde(deserialize_with = "bool_or_int", default)]
+    pub locked: Option<i32>,
+    #[serde(deserialize_with = "bool_or_int", default)]
+    pub graded: Option<i32>,
+    #[serde(deserialize_with = "bool_or_int", default)]
+    pub canedit: Option<i32>,
+    #[serde(deserialize_with = "bool_or_int", default)]
+    pub caneditowner: Option<i32>,
+    #[serde(deserialize_with = "bool_or_int", default)]
+    pub cansubmit: Option<i32>,
     pub extensionduedate: Option<i64>,
-    pub blindmarking: Option<bool>,
+    #[serde(deserialize_with = "bool_or_int", default)]
+    pub blindmarking: Option<i32>,
     pub gradingstatus: Option<String>,
     #[serde(default)]
     pub usergroups: Vec<serde_json::Value>,
@@ -250,7 +268,8 @@ pub struct Submission {
     pub status: Option<String>,
     pub groupid: Option<i64>,
     pub assignment: Option<i64>,
-    pub latest: Option<bool>,
+    #[serde(deserialize_with = "bool_or_int", default)]
+    pub latest: Option<i32>,
     #[serde(default)]
     pub plugins: Vec<SubmissionPlugin>,
 }
@@ -309,6 +328,12 @@ pub struct PendingAssignment {
     pub intro: Option<String>,
     pub submission_status: String,
     pub is_overdue: bool,
+    /// Full assignment description HTML (from mod_assign_get_assignments)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub description: Option<String>,
+    /// Attached files from intro
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub attachments: Vec<String>,
 }
 
 // ── Calendar ──
@@ -344,7 +369,8 @@ pub struct CalendarEvent {
     pub timeusermidnight: Option<i64>,
     pub visible: Option<i32>,
     pub timemodified: Option<i64>,
-    pub overdue: Option<bool>,
+    #[serde(deserialize_with = "bool_or_int", default)]
+    pub overdue: Option<i32>,
     pub icon: Option<CalendarEventIcon>,
     pub course: Option<CalendarEventCourse>,
     pub url: Option<String>,
@@ -372,8 +398,10 @@ pub struct CalendarEventAction {
     pub name: Option<String>,
     pub url: Option<String>,
     pub itemcount: Option<i64>,
-    pub actionable: Option<bool>,
-    pub showitemcount: Option<bool>,
+    #[serde(deserialize_with = "bool_or_int", default)]
+    pub actionable: Option<i32>,
+    #[serde(deserialize_with = "bool_or_int", default)]
+    pub showitemcount: Option<i32>,
 }
 
 // ── Grades ──
@@ -407,17 +435,22 @@ pub struct GradeItem {
     pub categoryid: Option<i64>,
     pub outcomeid: Option<i64>,
     pub scaleid: Option<i64>,
-    pub locked: Option<bool>,
+    #[serde(deserialize_with = "bool_or_int", default)]
+    pub locked: Option<i32>,
     pub cmid: Option<i64>,
     pub weightraw: Option<f64>,
     pub weightformatted: Option<String>,
     pub graderaw: Option<f64>,
     pub gradedatesubmitted: Option<i64>,
     pub gradedategraded: Option<i64>,
-    pub gradehiddenbydate: Option<bool>,
-    pub gradeneedsupdate: Option<bool>,
-    pub gradeishidden: Option<bool>,
-    pub gradeisoverridden: Option<bool>,
+    #[serde(deserialize_with = "bool_or_int", default)]
+    pub gradehiddenbydate: Option<i32>,
+    #[serde(deserialize_with = "bool_or_int", default)]
+    pub gradeneedsupdate: Option<i32>,
+    #[serde(deserialize_with = "bool_or_int", default)]
+    pub gradeishidden: Option<i32>,
+    #[serde(deserialize_with = "bool_or_int", default)]
+    pub gradeisoverridden: Option<i32>,
     pub gradeformatted: Option<String>,
     pub grademin: Option<f64>,
     pub grademax: Option<f64>,
@@ -484,7 +517,41 @@ pub struct ForumDiscussion {
     pub userfullname: Option<String>,
     pub userpictureurl: Option<String>,
     pub numreplies: Option<i32>,
-    pub pinned: Option<bool>,
+    #[serde(deserialize_with = "bool_or_int", default)]
+    pub pinned: Option<i32>,
+}
+
+// ── Forum Posts ──
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct ForumPostsResponse {
+    pub posts: Vec<ForumPost>,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct ForumPost {
+    pub id: i64,
+    pub discussionid: Option<i64>,
+    pub parentid: Option<i64>,
+    #[serde(deserialize_with = "bool_or_int", default)]
+    pub hasparent: Option<i32>,
+    pub subject: Option<String>,
+    pub message: Option<String>,
+    pub messageformat: Option<i32>,
+    pub timecreated: Option<i64>,
+    pub timemodified: Option<i64>,
+    pub author: Option<ForumPostAuthor>,
+    #[serde(default)]
+    pub attachments: Vec<FileInfo>,
+    #[serde(deserialize_with = "bool_or_int", default)]
+    pub haswordcount: Option<i32>,
+    pub wordcount: Option<i32>,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct ForumPostAuthor {
+    pub id: Option<i64>,
+    pub fullname: Option<String>,
 }
 
 // ── Notifications ──

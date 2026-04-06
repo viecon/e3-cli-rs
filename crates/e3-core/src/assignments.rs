@@ -92,7 +92,8 @@ pub async fn get_pending_assignments_via_calendar(
             .action
             .as_ref()
             .and_then(|a| a.actionable)
-            .unwrap_or(false);
+            .unwrap_or(0)
+            != 0;
         if !actionable {
             continue;
         }
@@ -104,7 +105,7 @@ pub async fn get_pending_assignments_via_calendar(
 
         let course_info = event.course.as_ref();
         let duedate = event.timestart;
-        let is_overdue = event.overdue.unwrap_or(false);
+        let is_overdue = event.overdue.unwrap_or(0) != 0;
 
         assignments.push(PendingAssignment {
             id: instance,
@@ -121,10 +122,20 @@ pub async fn get_pending_assignments_via_calendar(
             intro: event.description.clone(),
             submission_status: "new".into(), // actionable means not yet submitted
             is_overdue,
+            description: None,
+            attachments: Vec::new(),
         });
     }
 
     Ok(assignments)
+}
+
+/// Get ALL assignments for a course (including submitted), via REST API
+pub async fn get_all_course_assignments(
+    client: &MoodleClient,
+    course_ids: &[i64],
+) -> Result<Vec<PendingAssignment>> {
+    collect_assignments(client, course_ids, false).await
 }
 
 /// Get pending assignments via REST API (token only, more accurate status)
@@ -132,57 +143,104 @@ pub async fn get_pending_assignments(
     client: &MoodleClient,
     course_ids: &[i64],
 ) -> Result<Vec<PendingAssignment>> {
+    collect_assignments(client, course_ids, true).await
+}
+
+/// Shared helper: fetch assignments and their statuses in parallel
+async fn collect_assignments(
+    client: &MoodleClient,
+    course_ids: &[i64],
+    pending_only: bool,
+) -> Result<Vec<PendingAssignment>> {
     let data = get_assignments(client, course_ids).await?;
     let now = chrono::Utc::now().timestamp();
-    let mut pending = Vec::new();
 
+    // Flatten all valid assignments with course info
+    struct AssignInfo {
+        assign: Assignment,
+        course_id: i64,
+        course_name: String,
+        course_shortname: String,
+    }
+
+    let mut candidates: Vec<AssignInfo> = Vec::new();
     for course in data.courses {
         for assign in course.assignments {
-            // Skip assignments that don't accept submissions
             if assign.nosubmissions.unwrap_or(0) != 0 {
                 continue;
             }
-
-            let duedate = assign.duedate.unwrap_or(0);
-            // Skip if past cutoff
-            let cutoff = assign.cutoffdate.unwrap_or(duedate);
-            if cutoff > 0 && cutoff < now {
-                continue;
+            if pending_only {
+                let duedate = assign.duedate.unwrap_or(0);
+                let cutoff = assign.cutoffdate.unwrap_or(duedate);
+                if cutoff > 0 && cutoff < now {
+                    continue;
+                }
             }
-
-            // Check submission status
-            let status = match get_submission_status(client, assign.id).await {
-                Ok(s) => s,
-                Err(_) => continue,
-            };
-
-            let sub_status = status
-                .lastattempt
-                .as_ref()
-                .and_then(|la| la.submission.as_ref())
-                .and_then(|s| s.status.clone())
-                .unwrap_or_else(|| "new".into());
-
-            if sub_status == "submitted" {
-                continue;
-            }
-
-            let is_overdue = duedate > 0 && duedate < now;
-
-            pending.push(PendingAssignment {
-                id: assign.id,
-                cmid: assign.cmid,
+            candidates.push(AssignInfo {
+                assign,
                 course_id: course.id,
                 course_name: course.fullname.clone().unwrap_or_default(),
                 course_shortname: course.shortname.clone().unwrap_or_default(),
-                name: assign.name.unwrap_or_default(),
-                duedate: if duedate > 0 { Some(duedate) } else { None },
-                intro: assign.intro.clone(),
-                submission_status: sub_status,
-                is_overdue,
             });
         }
     }
 
-    Ok(pending)
+    // Fetch submission statuses in parallel
+    let status_futures: Vec<_> = candidates
+        .iter()
+        .map(|info| {
+            let client = client;
+            let assign_id = info.assign.id;
+            async move { get_submission_status(client, assign_id).await.ok() }
+        })
+        .collect();
+
+    let statuses = futures::future::join_all(status_futures).await;
+
+    // Build results
+    let mut result = Vec::new();
+    for (info, status) in candidates.into_iter().zip(statuses) {
+        let sub_status = status
+            .as_ref()
+            .and_then(|s| s.lastattempt.as_ref())
+            .and_then(|la| la.submission.as_ref())
+            .and_then(|s| s.status.clone())
+            .unwrap_or_else(|| if status.is_some() { "new" } else { "unknown" }.into());
+
+        if pending_only && sub_status == "submitted" {
+            continue;
+        }
+
+        let duedate = info.assign.duedate.unwrap_or(0);
+        let is_overdue = if pending_only {
+            duedate > 0 && duedate < now
+        } else {
+            sub_status != "submitted" && duedate > 0 && duedate < now
+        };
+
+        let attachments: Vec<String> = info
+            .assign
+            .introattachments
+            .iter()
+            .chain(info.assign.introfiles.iter())
+            .filter_map(|f| f.filename.clone())
+            .collect();
+
+        result.push(PendingAssignment {
+            id: info.assign.id,
+            cmid: info.assign.cmid,
+            course_id: info.course_id,
+            course_name: info.course_name,
+            course_shortname: info.course_shortname,
+            name: info.assign.name.unwrap_or_default(),
+            duedate: if duedate > 0 { Some(duedate) } else { None },
+            intro: info.assign.intro.clone(),
+            submission_status: sub_status,
+            is_overdue,
+            description: info.assign.intro,
+            attachments,
+        });
+    }
+
+    Ok(result)
 }

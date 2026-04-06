@@ -211,6 +211,36 @@ impl MoodleClient {
             .map_err(|e| E3Error::InvalidResponse(format!("AJAX data parse error: {e}")))
     }
 
+    /// Fetch an authenticated E3 page, returns HTML body
+    pub async fn fetch_page(&self, page_url: &str) -> Result<String> {
+        let req = match &self.auth {
+            AuthMethod::Token(token) => {
+                let mut url = Url::parse(page_url)
+                    .map_err(|e| E3Error::Other(format!("Invalid URL: {e}")))?;
+                url.query_pairs_mut().append_pair("token", token);
+                self.http.get(url.as_str())
+            }
+            AuthMethod::Session { cookie, .. } => {
+                self.http
+                    .get(page_url)
+                    .header(COOKIE, format!("MoodleSession={cookie}"))
+            }
+        };
+
+        let resp = req.send().await?;
+        let status = resp.status();
+        if status.as_u16() == 301 || status.as_u16() == 302 || status.as_u16() == 403 {
+            return Err(E3Error::SessionExpired);
+        }
+
+        let html = resp.text().await?;
+        if html.contains("login/index.php") && html.contains("loginerrors") {
+            return Err(E3Error::SessionExpired);
+        }
+
+        Ok(html)
+    }
+
     /// Extract sesskey from /my/ page (for session auth)
     pub async fn extract_sesskey(
         &self,
