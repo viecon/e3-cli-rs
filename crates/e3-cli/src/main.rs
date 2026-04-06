@@ -4,6 +4,7 @@ mod output;
 
 use clap::Parser;
 use commands::Commands;
+use e3_core::E3Error;
 
 #[derive(Parser)]
 #[command(name = "e3", version, about = "NYCU E3 CLI — Moodle 助手工具")]
@@ -24,6 +25,21 @@ pub struct Cli {
     command: Commands,
 }
 
+/// Exit codes for Agent consumption:
+/// 0 = success
+/// 1 = API/general error
+/// 2 = not authenticated
+/// 3 = network error
+/// 4 = session expired
+fn exit_code(err: &E3Error) -> i32 {
+    match err {
+        E3Error::NotAuthenticated => 2,
+        E3Error::Http(_) => 3,
+        E3Error::SessionExpired => 4,
+        _ => 1,
+    }
+}
+
 #[tokio::main]
 async fn main() {
     let cli = Cli::parse();
@@ -40,6 +56,6 @@ async fn main() {
         } else {
             output::print_error(&e);
         }
-        std::process::exit(1);
+        std::process::exit(exit_code(&e));
     }
 }
