@@ -20,7 +20,6 @@ cargo install --path crates/e3-cli
 # 登入
 e3 login -u <student_id> -p <password>
 e3 login --token <token>
-e3 login --session <MoodleSession_cookie>
 
 # 總覽
 e3 whoami
@@ -91,13 +90,6 @@ cargo test          # 36 tests
 cargo clippy
 cargo fmt
 ```
-
-## 關聯
-
-- [e3-calendar](https://github.com/viecon/e3-calendar) — ICS 行事曆 (private, CI 用此 binary)
-- [e3-mobile](https://github.com/viecon/e3-mobile) — PWA (e3.viecon.site)
-- [e3-extension](https://github.com/viecon/e3-extension) — 瀏覽器 Extension
-- [e3-cli](https://github.com/viecon/e3-cli) — TS 版 (legacy)
 
 ## License
 
