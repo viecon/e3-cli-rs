@@ -1,0 +1,15 @@
+[package]
+name = "e3-core"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+reqwest = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+tokio = { workspace = true }
+thiserror = { workspace = true }
+regex = { workspace = true }
+chrono = { workspace = true }
+url = { workspace = true }
+base64 = { workspace = true }
