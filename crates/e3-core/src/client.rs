@@ -63,7 +63,7 @@ impl MoodleClient {
     }
 
     /// REST API call (token-based)
-    pub async fn rest_call<T: DeserializeOwned>(
+    async fn rest_call<T: DeserializeOwned>(
         &self,
         func: &str,
         params: &impl Serialize,
@@ -128,7 +128,7 @@ impl MoodleClient {
     }
 
     /// AJAX API call (session-based)
-    pub async fn ajax_call<T: DeserializeOwned>(
+    async fn ajax_call<T: DeserializeOwned>(
         &self,
         func: &str,
         params: &impl Serialize,

@@ -31,16 +31,30 @@ pub async fn run(json: bool, base_url: Option<&str>, course: Option<i64>, days: 
 
     let cutoff = chrono::Utc::now().timestamp() - days * 86400;
 
+    // Fetch all forum discussions in parallel
+    let discussion_futures: Vec<_> = news_forums
+        .iter()
+        .map(|forum| {
+            let client = &client;
+            let course = forum.course;
+            let forum_id = forum.id;
+            async move {
+                let result =
+                    e3_core::forums::get_forum_discussions(client, forum_id, -1, 0, 20).await;
+                (course, result)
+            }
+        })
+        .collect();
+
+    let results = futures::future::join_all(discussion_futures).await;
+
     let mut all_posts = Vec::new();
-    for forum in &news_forums {
-        match e3_core::forums::get_forum_discussions(&client, forum.id, -1, 0, 20).await {
-            Err(_) => {}
-            Ok(discussions) => {
-                for d in discussions.discussions {
-                    let modified = d.timemodified.unwrap_or(0);
-                    if modified >= cutoff {
-                        all_posts.push((forum.course, d));
-                    }
+    for (course, result) in results {
+        if let Ok(discussions) = result {
+            for d in discussions.discussions {
+                let modified = d.timemodified.unwrap_or(0);
+                if modified >= cutoff {
+                    all_posts.push((course, d));
                 }
             }
         }

@@ -86,6 +86,57 @@ mod tests {
         assert!(result.contains(&("options[filter][ids][1]".to_string(), "20".to_string())));
     }
 
+    #[test]
+    fn flatten_empty_array() {
+        let val = serde_json::json!({ "ids": [] });
+        let result = flatten_params(&val);
+        assert!(result.is_empty());
+    }
+
+    #[test]
+    fn flatten_array_of_objects() {
+        let val = serde_json::json!({
+            "items": [
+                { "id": 1, "name": "a" },
+                { "id": 2, "name": "b" }
+            ]
+        });
+        let result = flatten_params(&val);
+        assert!(result.contains(&("items[0][id]".to_string(), "1".to_string())));
+        assert!(result.contains(&("items[0][name]".to_string(), "a".to_string())));
+        assert!(result.contains(&("items[1][id]".to_string(), "2".to_string())));
+        assert!(result.contains(&("items[1][name]".to_string(), "b".to_string())));
+    }
+
+    // ── filename_from_url ──
+
+    #[test]
+    fn filename_from_url_basic() {
+        use crate::files::filename_from_url;
+        assert_eq!(
+            filename_from_url(
+                "https://e3.nycu.edu.tw/pluginfile.php/123/mod_resource/content/0/lecture.pdf"
+            ),
+            Some("lecture.pdf".into())
+        );
+    }
+
+    #[test]
+    fn filename_from_url_with_query() {
+        use crate::files::filename_from_url;
+        assert_eq!(
+            filename_from_url("https://e3.nycu.edu.tw/pluginfile.php/123/file.pdf?forcedownload=1"),
+            Some("file.pdf".into())
+        );
+    }
+
+    #[test]
+    fn filename_from_url_trailing_slash() {
+        use crate::files::filename_from_url;
+        // Trailing slash → empty segment → None
+        assert_eq!(filename_from_url("https://example.com/"), None);
+    }
+
     // ── strip_html ──
 
     #[test]

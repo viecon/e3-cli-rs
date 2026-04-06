@@ -24,3 +24,4 @@ chrono = { workspace = true }
 chrono-tz = { workspace = true }
 reqwest = { workspace = true }
 clap_complete = "4"
+futures = "0.3"

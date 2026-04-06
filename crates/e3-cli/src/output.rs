@@ -72,6 +72,7 @@ pub fn spinner(msg: &str) -> indicatif::ProgressBar {
 }
 
 /// Create a progress bar for downloads
+#[allow(dead_code)]
 pub fn progress_bar(total: u64) -> indicatif::ProgressBar {
     let pb = indicatif::ProgressBar::new(total);
     pb.set_style(

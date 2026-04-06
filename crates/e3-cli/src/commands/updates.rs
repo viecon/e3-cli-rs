@@ -21,26 +21,37 @@ pub async fn run(json: bool, base_url: Option<&str>, course: Option<i64>, days: 
         courses.iter().map(|c| c.id).collect()
     };
 
+    // Fetch all course updates in parallel
+    let update_futures: Vec<_> = course_ids
+        .iter()
+        .map(|&cid| {
+            let client = &client;
+            async move {
+                let result = e3_core::courses::get_course_updates(client, cid, since).await;
+                (cid, result)
+            }
+        })
+        .collect();
+
+    let results = futures::future::join_all(update_futures).await;
+
     let mut all_updates = Vec::new();
-    for &cid in &course_ids {
-        match e3_core::courses::get_course_updates(&client, cid, since).await {
-            Ok(resp) => {
-                for instance in resp.instances {
-                    for update in &instance.updates {
-                        let time = update.timeupdated.unwrap_or(0);
-                        if time >= since {
-                            all_updates.push((
-                                cid,
-                                instance.contextlevel.clone().unwrap_or_default(),
-                                update.name.clone().unwrap_or_default(),
-                                time,
-                                update.itemids.len(),
-                            ));
-                        }
+    for (cid, result) in results {
+        if let Ok(resp) = result {
+            for instance in resp.instances {
+                for update in &instance.updates {
+                    let time = update.timeupdated.unwrap_or(0);
+                    if time >= since {
+                        all_updates.push((
+                            cid,
+                            instance.contextlevel.clone().unwrap_or_default(),
+                            update.name.clone().unwrap_or_default(),
+                            time,
+                            update.itemids.len(),
+                        ));
                     }
                 }
             }
-            Err(_) => continue,
         }
     }
 

@@ -113,6 +113,7 @@ impl E3Config {
 }
 
 /// Read credentials from ~/.e3.env
+#[allow(dead_code)]
 pub fn load_env_credentials() -> Option<(String, String)> {
     let path = E3Config::env_path();
     let text = std::fs::read_to_string(&path).ok()?;
@@ -152,6 +153,7 @@ pub fn save_env_credentials(username: &str, password: &str) -> Result<()> {
 }
 
 /// Try to re-login using saved credentials
+#[allow(dead_code)]
 pub async fn try_relogin(config: &mut E3Config) -> Result<String> {
     let (username, password) = load_env_credentials().ok_or(E3Error::NotAuthenticated)?;
 
@@ -165,24 +167,34 @@ pub async fn try_relogin(config: &mut E3Config) -> Result<String> {
     Ok(token)
 }
 
-/// Build a client with auto-relogin on SessionExpired.
-/// Returns (client, config) so callers can use the refreshed client.
+/// Build a client from config (no upfront validation — lazy relogin).
 pub async fn build_client_with_relogin(base_url: Option<&str>) -> Result<(MoodleClient, E3Config)> {
     let config = E3Config::load()?;
     let client = config.build_client(base_url)?;
+    Ok((client, config))
+}
 
-    // Test the connection
-    match e3_core::auth::get_site_info(&client).await {
-        Ok(_) => Ok((client, config)),
+/// Execute an async operation with auto-relogin on SessionExpired.
+/// Retries once after refreshing the token.
+#[allow(dead_code)]
+pub async fn with_relogin<T, F, Fut>(base_url: Option<&str>, op: F) -> Result<T>
+where
+    F: Fn(MoodleClient) -> Fut,
+    Fut: std::future::Future<Output = Result<T>>,
+{
+    let config = E3Config::load()?;
+    let client = config.build_client(base_url)?;
+
+    match op(client).await {
+        Ok(val) => Ok(val),
         Err(E3Error::SessionExpired) => {
-            // Attempt auto-relogin
             let mut config = config;
             let token = try_relogin(&mut config).await?;
             let client = MoodleClient::new(
                 Some(base_url.unwrap_or_else(|| config.get_base_url())),
                 e3_core::client::AuthMethod::Token(token),
             )?;
-            Ok((client, config))
+            op(client).await
         }
         Err(e) => Err(e),
     }

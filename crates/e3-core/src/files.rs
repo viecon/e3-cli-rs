@@ -85,18 +85,10 @@ async fn scrape_course_files(
         }
         seen.insert(url.clone());
 
-        let filename = url
-            .split('/')
-            .next_back()
-            .unwrap_or("unknown")
-            .split('?')
-            .next()
-            .unwrap_or("unknown")
-            .to_string();
-
-        if filename.is_empty() || filename == "unknown" {
-            continue;
-        }
+        let filename = match filename_from_url(&url) {
+            Some(f) => f,
+            None => continue,
+        };
 
         if !matches_type_filter(&filename, type_filter) {
             continue;
@@ -125,16 +117,12 @@ async fn scrape_course_files(
                 }
                 seen.insert(url.clone());
 
-                let filename = url
-                    .split('/')
-                    .next_back()
-                    .unwrap_or("unknown")
-                    .split('?')
-                    .next()
-                    .unwrap_or("unknown")
-                    .to_string();
+                let filename = match filename_from_url(&url) {
+                    Some(f) => f,
+                    None => continue,
+                };
 
-                if filename.is_empty() || !matches_type_filter(&filename, type_filter) {
+                if !matches_type_filter(&filename, type_filter) {
                     continue;
                 }
 
@@ -151,6 +139,16 @@ async fn scrape_course_files(
     }
 
     Ok(files)
+}
+
+/// Extract filename from a URL (last path segment, strip query)
+pub(crate) fn filename_from_url(url: &str) -> Option<String> {
+    let name = url.split('/').next_back()?.split('?').next()?.to_string();
+    if name.is_empty() {
+        None
+    } else {
+        Some(name)
+    }
 }
 
 fn matches_type_filter(filename: &str, type_filter: Option<&[&str]>) -> bool {
