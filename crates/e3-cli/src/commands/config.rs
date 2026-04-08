@@ -69,11 +69,6 @@ pub fn run(
                     config.base_url.as_deref().unwrap_or("—")
                 );
                 println!(
-                    "{}: {}",
-                    "vault_path".bold(),
-                    config.vault_path.as_deref().unwrap_or("—")
-                );
-                println!(
                     "{}: {:?}",
                     "excluded_courses".bold(),
                     config.excluded_courses
@@ -102,7 +97,6 @@ fn get_config_value(config: &E3Config, key: &str) -> Result<String> {
         "userid" => Ok(config.userid.map(|id| id.to_string()).unwrap_or_default()),
         "fullname" => Ok(config.fullname.clone().unwrap_or_default()),
         "base_url" | "baseUrl" => Ok(config.base_url.clone().unwrap_or_default()),
-        "vault_path" | "vaultPath" => Ok(config.vault_path.clone().unwrap_or_default()),
         "excluded_courses" | "excludedCourses" => {
             Ok(serde_json::to_string(&config.excluded_courses).unwrap_or_default())
         }
@@ -116,7 +110,6 @@ fn get_config_value(config: &E3Config, key: &str) -> Result<String> {
 fn set_config_value(config: &mut E3Config, key: &str, value: &str) -> Result<()> {
     match key {
         "base_url" | "baseUrl" => config.base_url = Some(value.into()),
-        "vault_path" | "vaultPath" => config.vault_path = Some(value.into()),
         "excluded_courses" | "excludedCourses" => {
             config.excluded_courses = serde_json::from_str(value)
                 .map_err(|e| E3Error::Other(format!("Invalid JSON array: {e}")))?;

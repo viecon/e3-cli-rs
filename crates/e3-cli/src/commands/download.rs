@@ -47,11 +47,7 @@ pub async fn run(
 
     let course_ids: Vec<i64> = courses.iter().map(|c| c.id).collect();
 
-    // Gather excluded extensions from config
-    let mut excluded_exts = config.excluded_extensions.clone();
-    if excluded_exts.is_empty() {
-        excluded_exts = vec!["mp4".into(), "mkv".into()];
-    }
+    let excluded_exts = config.excluded_extensions.clone();
 
     let type_refs: Option<Vec<&str>> = type_filter
         .as_ref()

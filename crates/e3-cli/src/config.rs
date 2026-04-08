@@ -19,12 +19,14 @@ pub struct E3Config {
     pub sesskey: Option<String>,
     #[serde(alias = "baseUrl")]
     pub base_url: Option<String>,
-    #[serde(alias = "vaultPath")]
-    pub vault_path: Option<String>,
     #[serde(alias = "excludedCourses", default)]
     pub excluded_courses: Vec<String>,
-    #[serde(alias = "excludedExtensions", default)]
+    #[serde(alias = "excludedExtensions", default = "default_excluded_extensions")]
     pub excluded_extensions: Vec<String>,
+}
+
+fn default_excluded_extensions() -> Vec<String> {
+    vec!["mp4".into(), "mkv".into()]
 }
 
 impl E3Config {

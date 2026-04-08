@@ -122,11 +122,7 @@ fn calendar_to_ics(events: &[CalendarEvent]) -> Vec<ICSEvent> {
                 dtstart
             };
 
-            let summary = if module == "assign" {
-                e.name.clone().unwrap_or_default()
-            } else {
-                e.name.clone().unwrap_or_default()
-            };
+            let summary = e.name.clone().unwrap_or_default();
 
             let categories = vec![
                 e.eventtype.clone().unwrap_or_default(),
