@@ -67,7 +67,7 @@ pub async fn run(json: bool, base_url: Option<&str>) -> Result<()> {
             .bold()
             .to_string()
     };
-    println!("📋 {}", assign_label);
+    println!("{}", assign_label);
 
     for a in &assignments {
         let date_str = a
@@ -96,13 +96,13 @@ pub async fn run(json: bool, base_url: Option<&str>) -> Result<()> {
     // Notifications
     println!();
     if unread_count > 0 {
-        println!("🔔 {} 未讀通知", format!("{unread_count}").yellow().bold());
+        println!("{} 未讀通知", format!("{unread_count}").yellow().bold());
     } else {
-        println!("🔔 {}", "沒有未讀通知".green());
+        println!("{}", "沒有未讀通知".green());
     }
 
     // Courses
-    println!("📚 {} 門進行中課程", courses.len());
+    println!("{} 門進行中課程", courses.len());
     println!();
 
     Ok(())

@@ -128,7 +128,7 @@ fn calendar_to_ics(events: &[CalendarEvent]) -> Vec<ICSEvent> {
             };
 
             let summary = if module == "assign" {
-                format!("📋 {}", e.name.as_deref().unwrap_or(""))
+                e.name.clone().unwrap_or_default()
             } else {
                 e.name.clone().unwrap_or_default()
             };
@@ -199,7 +199,7 @@ fn load_manual_exams() -> Vec<ICSEvent> {
 
                         Some(ICSEvent {
                             uid,
-                            summary: format!("📝 {} — {}", exam.course, exam.name),
+                            summary: format!("{} — {}", exam.course, exam.name),
                             description: None,
                             dtstart,
                             dtend,
