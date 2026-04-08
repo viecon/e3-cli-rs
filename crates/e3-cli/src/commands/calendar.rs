@@ -3,7 +3,7 @@ use crate::output;
 use colored::Colorize;
 use comfy_table::{presets, ContentArrangement, Table};
 use e3_core::error::{E3Error, Result};
-use e3_core::types::{CalendarEvent, ICSEvent, ManualExamEvent};
+use e3_core::types::{CalendarEvent, ICSEvent};
 
 pub async fn run(
     json: bool,
@@ -29,12 +29,7 @@ pub async fn run(
     // ICS generation
     if let Some(ics_path) = ics {
         let ics_events = e3_core::calendar::get_upcoming_events(&client, ics_days).await?;
-        let mut all_ics_events = calendar_to_ics(&ics_events);
-
-        // Load manual exams if available
-        let manual = load_manual_exams();
-        all_ics_events.extend(manual);
-
+        let all_ics_events = calendar_to_ics(&ics_events);
         let ics_content = e3_core::ics::generate_ics(&all_ics_events);
         let path = ics_path.unwrap_or_else(|| "e3-calendar.ics".into());
 
@@ -155,63 +150,3 @@ fn calendar_to_ics(events: &[CalendarEvent]) -> Vec<ICSEvent> {
         .collect()
 }
 
-fn load_manual_exams() -> Vec<ICSEvent> {
-    let paths = [
-        dirs::home_dir()
-            .unwrap_or_default()
-            .join(".calendar-events.json"),
-        std::env::current_dir()
-            .unwrap_or_default()
-            .join("calendar-events.json"),
-    ];
-
-    for path in &paths {
-        if let Ok(text) = std::fs::read_to_string(path) {
-            if let Ok(exams) = serde_json::from_str::<Vec<ManualExamEvent>>(&text) {
-                return exams
-                    .into_iter()
-                    .filter_map(|exam| {
-                        let date =
-                            chrono::NaiveDate::parse_from_str(&exam.date, "%Y-%m-%d").ok()?;
-                        let all_day = exam.all_day.unwrap_or(true);
-
-                        let (dtstart, dtend) = if all_day {
-                            let dt = date.and_hms_opt(0, 0, 0)?.and_utc();
-                            (dt, None)
-                        } else {
-                            let start_time = exam.start_time.as_deref().unwrap_or("09:00");
-                            let end_time = exam.end_time.as_deref().unwrap_or("10:00");
-                            let start =
-                                chrono::NaiveTime::parse_from_str(start_time, "%H:%M").ok()?;
-                            let end = chrono::NaiveTime::parse_from_str(end_time, "%H:%M").ok()?;
-                            // UTC+8 → subtract 8h for UTC
-                            let s = date.and_time(start).and_utc() - chrono::Duration::hours(8);
-                            let e = date.and_time(end).and_utc() - chrono::Duration::hours(8);
-                            (s, Some(e))
-                        };
-
-                        let uid = format!(
-                            "e3-exam-{}-{}-{}@manual",
-                            exam.date,
-                            exam.course.replace(' ', "-"),
-                            exam.name.replace(' ', "-")
-                        );
-
-                        Some(ICSEvent {
-                            uid,
-                            summary: format!("{} — {}", exam.course, exam.name),
-                            description: None,
-                            dtstart,
-                            dtend,
-                            location: exam.location,
-                            categories: vec!["exam".into(), exam.course],
-                            all_day,
-                        })
-                    })
-                    .collect();
-            }
-        }
-    }
-
-    Vec::new()
-}

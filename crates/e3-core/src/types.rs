@@ -632,17 +632,3 @@ pub struct ICSEvent {
     pub all_day: bool,
 }
 
-/// Manual exam event from calendar-events.json
-#[derive(Debug, Clone, Deserialize, Serialize)]
-pub struct ManualExamEvent {
-    pub name: String,
-    pub course: String,
-    pub date: String,
-    #[serde(rename = "startTime")]
-    pub start_time: Option<String>,
-    #[serde(rename = "endTime")]
-    pub end_time: Option<String>,
-    pub location: Option<String>,
-    #[serde(rename = "allDay")]
-    pub all_day: Option<bool>,
-}
