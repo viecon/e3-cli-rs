@@ -87,8 +87,17 @@ fn format_date(dt: &chrono::DateTime<Utc>) -> String {
     format!("{:04}{:02}{:02}", dt.year(), dt.month(), dt.day())
 }
 
+fn strip_emoji(s: &str) -> String {
+    s.chars()
+        .filter(|c| !matches!(c, '\u{1F300}'..='\u{1F9FF}' | '\u{2600}'..='\u{26FF}' | '\u{2700}'..='\u{27BF}'))
+        .collect::<String>()
+        .trim()
+        .to_string()
+}
+
 fn ics_escape(s: &str) -> String {
-    s.replace('\\', "\\\\")
+    strip_emoji(s)
+        .replace('\\', "\\\\")
         .replace(';', "\\;")
         .replace(',', "\\,")
         .replace('\n', "\\n")
