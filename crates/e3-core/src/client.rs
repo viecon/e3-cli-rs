@@ -211,14 +211,26 @@ impl MoodleClient {
             .map_err(|e| E3Error::InvalidResponse(format!("AJAX data parse error: {e}")))
     }
 
-    /// Fetch an authenticated E3 page, returns HTML body
+    /// Fetch an authenticated E3 page, returns HTML body.
+    /// For token mode: pluginfile/webservice URLs get token appended;
+    /// other pages require a session cookie (call `establish_session` first).
     pub async fn fetch_page(&self, page_url: &str) -> Result<String> {
+        let parsed = Url::parse(page_url)
+            .map_err(|e| E3Error::Other(format!("Invalid URL: {e}")))?;
+
         let req = match &self.auth {
             AuthMethod::Token(token) => {
-                let mut url = Url::parse(page_url)
-                    .map_err(|e| E3Error::Other(format!("Invalid URL: {e}")))?;
-                url.query_pairs_mut().append_pair("token", token);
-                self.http.get(url.as_str())
+                let path = parsed.path();
+                if path.contains("/pluginfile.php") || path.contains("/webservice/") {
+                    let mut url = parsed;
+                    url.query_pairs_mut().append_pair("token", token);
+                    self.http.get(url.as_str())
+                } else {
+                    // Non-API pages don't accept token param
+                    return Err(E3Error::Other(
+                        "Token 模式無法存取非 API 頁面，請用 session 或儲存帳密後重試".into(),
+                    ));
+                }
             }
             AuthMethod::Session { cookie, .. } => {
                 self.http
@@ -239,6 +251,65 @@ impl MoodleClient {
         }
 
         Ok(html)
+    }
+
+    /// Establish a Moodle browser session via form login, returns MoodleSession cookie.
+    pub async fn establish_session(
+        base_url: &Url,
+        username: &str,
+        password: &str,
+    ) -> Result<String> {
+        let http = reqwest::Client::builder()
+            .redirect(reqwest::redirect::Policy::none())
+            .timeout(REQUEST_TIMEOUT)
+            .build()?;
+
+        let mut login_url = base_url.clone();
+        login_url.set_path("/login/index.php");
+
+        // Step 1: GET the login page to extract logintoken
+        let page_resp = http.get(login_url.as_str()).send().await?;
+
+        // Capture initial MoodleSession cookie (pre-login)
+        let initial_cookie: Option<String> = page_resp
+            .headers()
+            .get_all("set-cookie")
+            .iter()
+            .filter_map(|v| v.to_str().ok())
+            .find(|s| s.starts_with("MoodleSession="))
+            .and_then(|s| s.split('=').nth(1))
+            .and_then(|s| s.split(';').next())
+            .map(|s| s.to_string());
+
+        let page = page_resp.text().await?;
+        let logintoken = extract_pattern(&page, r#"name="logintoken"\s+value="([^"]+)""#)
+            .ok_or_else(|| E3Error::Other("無法取得 logintoken".into()))?;
+
+        // Step 2: POST login form with no-redirect to capture Set-Cookie
+        let mut post = http.post(login_url.as_str()).form(&[
+            ("username", username),
+            ("password", password),
+            ("logintoken", logintoken.as_str()),
+            ("anchor", ""),
+        ]);
+
+        // Send the pre-login cookie if we got one
+        if let Some(ref c) = initial_cookie {
+            post = post.header(COOKIE, format!("MoodleSession={c}"));
+        }
+
+        let resp = post.send().await?;
+
+        // On successful login, Moodle returns 303 with a new MoodleSession cookie
+        resp.headers()
+            .get_all("set-cookie")
+            .iter()
+            .filter_map(|v| v.to_str().ok())
+            .find(|s| s.starts_with("MoodleSession="))
+            .and_then(|s| s.split('=').nth(1))
+            .and_then(|s| s.split(';').next())
+            .map(|s| s.to_string())
+            .ok_or_else(|| E3Error::Other("登入失敗，請確認帳密正確".into()))
     }
 
     /// Extract sesskey from /my/ page (for session auth)

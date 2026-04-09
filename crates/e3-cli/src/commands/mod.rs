@@ -50,8 +50,8 @@ pub enum Commands {
     },
     /// List pending assignments
     Assignments {
-        /// Days ahead to look (default: 30)
-        #[arg(long, default_value = "30")]
+        /// Days ahead to look (default: 90)
+        #[arg(long, default_value = "90")]
         days: i64,
         /// Filter by course ID
         #[arg(long)]
@@ -144,6 +144,9 @@ pub enum Commands {
         /// Download all courses
         #[arg(long)]
         all: bool,
+        /// Download assignment attachments by cmid
+        #[arg(long)]
+        assignment: Option<i64>,
         /// Filter by file extensions (comma-separated)
         #[arg(long, value_delimiter = ',')]
         r#type: Option<Vec<String>>,
@@ -262,6 +265,7 @@ pub async fn run(cli: Cli) -> e3_core::error::Result<()> {
         Commands::Download {
             course,
             all,
+            assignment,
             r#type,
             output,
             list,
@@ -272,6 +276,7 @@ pub async fn run(cli: Cli) -> e3_core::error::Result<()> {
                 cli.base_url.as_deref(),
                 course,
                 all,
+                assignment,
                 r#type,
                 output,
                 list,

@@ -331,9 +331,18 @@ pub struct PendingAssignment {
     /// Full assignment description HTML (from mod_assign_get_assignments)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub description: Option<String>,
-    /// Attached files from intro
+    /// Attached files from intro (with download URLs)
     #[serde(skip_serializing_if = "Vec::is_empty")]
-    pub attachments: Vec<String>,
+    pub attachments: Vec<AttachmentInfo>,
+}
+
+/// Attachment file info for assignments
+#[derive(Debug, Clone, Serialize)]
+pub struct AttachmentInfo {
+    pub filename: String,
+    pub fileurl: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub filesize: Option<i64>,
 }
 
 // ── Calendar ──

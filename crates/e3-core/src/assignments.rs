@@ -218,12 +218,20 @@ async fn collect_assignments(
             sub_status != "submitted" && duedate > 0 && duedate < now
         };
 
-        let attachments: Vec<String> = info
+        let attachments: Vec<crate::types::AttachmentInfo> = info
             .assign
             .introattachments
             .iter()
             .chain(info.assign.introfiles.iter())
-            .filter_map(|f| f.filename.clone())
+            .filter_map(|f| {
+                let filename = f.filename.clone()?;
+                let fileurl = f.fileurl.clone()?;
+                Some(crate::types::AttachmentInfo {
+                    filename,
+                    fileurl,
+                    filesize: f.filesize,
+                })
+            })
             .collect();
 
         result.push(PendingAssignment {

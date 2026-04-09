@@ -12,12 +12,18 @@ pub async fn run(
     base_url: Option<&str>,
     course: Option<i64>,
     all: bool,
+    assignment: Option<i64>,
     type_filter: Option<Vec<String>>,
     output_dir: Option<String>,
     list_only: bool,
     skip_existing: bool,
 ) -> Result<()> {
     let (client, config) = build_client_with_relogin(base_url).await?;
+
+    // Handle --assignment mode: download assignment intro attachments
+    if let Some(cmid) = assignment {
+        return download_assignment_attachments(json, &client, cmid, output_dir).await;
+    }
 
     let sp = if !json {
         Some(output::spinner("取得檔案列表..."))
@@ -179,6 +185,115 @@ pub async fn run(
             downloaded,
             skipped,
             total,
+        );
+    }
+
+    Ok(())
+}
+
+/// Download assignment intro attachments by cmid
+async fn download_assignment_attachments(
+    json: bool,
+    client: &e3_core::MoodleClient,
+    cmid: i64,
+    output_dir: Option<String>,
+) -> Result<()> {
+    let sp = if !json {
+        Some(output::spinner("取得作業附件..."))
+    } else {
+        None
+    };
+
+    // Resolve cmid -> (assign_id, course_id)
+    let (_assign_id, course_id) =
+        e3_core::assignments::resolve_assign_id(client, cmid).await?;
+
+    // Fetch assignment details
+    let data = e3_core::assignments::get_assignments(client, &[course_id]).await?;
+
+    // Find the assignment and collect attachments as FileInfo refs
+    let assign = data
+        .courses
+        .iter()
+        .flat_map(|c| &c.assignments)
+        .find(|a| a.cmid == Some(cmid))
+        .ok_or_else(|| E3Error::Other(format!("找不到作業 cmid={cmid}")))?;
+
+    let file_infos: Vec<&e3_core::types::FileInfo> = assign
+        .introattachments
+        .iter()
+        .chain(assign.introfiles.iter())
+        .filter(|f| f.fileurl.is_some() && f.filename.is_some())
+        .collect();
+
+    if let Some(sp) = sp {
+        sp.finish_and_clear();
+    }
+
+    if file_infos.is_empty() {
+        if json {
+            output::print_json_success(&serde_json::json!({
+                "downloaded": 0,
+                "message": "no attachments",
+            }));
+        } else {
+            println!("{}", "此作業沒有附件".yellow());
+        }
+        return Ok(());
+    }
+
+    let dest_dir = PathBuf::from(output_dir.unwrap_or_else(|| ".".into()));
+    std::fs::create_dir_all(&dest_dir)
+        .map_err(|e| E3Error::Other(format!("Cannot create directory: {e}")))?;
+
+    let mut downloaded = 0;
+    for f in &file_infos {
+        let filename = f.filename.as_deref().unwrap_or("unknown");
+        let url = f.fileurl.as_deref().unwrap();
+
+        let safe_name = files::sanitize_filename(filename);
+        let dest = match files::safe_join(&dest_dir, &safe_name) {
+            Some(p) => p,
+            None => continue,
+        };
+
+        if !json {
+            eprint!("下載 {}...", safe_name);
+        }
+
+        match client.download_file(url).await {
+            Ok(data) => {
+                std::fs::write(&dest, &data)
+                    .map_err(|e| E3Error::Other(format!("Write error: {e}")))?;
+                downloaded += 1;
+                if !json {
+                    eprintln!(" {}", "✓".green());
+                }
+            }
+            Err(e) => {
+                if !json {
+                    eprintln!(" {}", format!("✗ {e}").red());
+                }
+            }
+        }
+    }
+
+    if json {
+        let names: Vec<_> = file_infos
+            .iter()
+            .filter_map(|f| f.filename.clone())
+            .collect();
+        output::print_json_success(&serde_json::json!({
+            "downloaded": downloaded,
+            "files": names,
+            "directory": dest_dir.to_string_lossy(),
+        }));
+    } else {
+        println!(
+            "\n{} {} 個附件到 {}",
+            "✓ 已下載".green().bold(),
+            downloaded,
+            dest_dir.display(),
         );
     }
 
